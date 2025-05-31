@@ -7,18 +7,15 @@ import re
 from waitress import serve
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"  # For session management; change in production
+app.secret_key = "supersecretkey"   
 
-# --- On-chain Endpoints ---
+# Endpoints 
 ACCOUNT_MODULES_URL = "https://rpc-testnet.supra.com/rpc/v2/accounts/{address}/modules"
 ACCOUNT_RESOURCES_URL = "https://rpc-testnet.supra.com/rpc/v1/accounts/{address}/resources/0x1::code::PackageRegistry"
 ALL_RESOURCES_URL = "https://rpc-testnet.supra.com/rpc/v3/accounts/{address}/resources"
-
-# --- OpenBlocks Endpoints ---
 TRANSFER_STATS_URL = "https://services.blockpour.com/query/stats/supra/transfer-stats"
 RECENT_TRANSFERS_URL = "https://services.blockpour.com/query/transfers/recent-supra?limit={limit}"
-
-# ---------- On-chain Functions ----------
+ 
 def get_package_registry(address: str) -> dict:
     """Get package registry for an address"""
     url = ACCOUNT_RESOURCES_URL.format(address=address)
@@ -36,7 +33,6 @@ def extract_module_source(mod_source: str) -> str:
     try:
         hex_str = mod_source[2:]
         buffer = bytes.fromhex(hex_str)
-        # Use zlib.decompress with proper gzip setting
         source_text = zlib.decompress(buffer, 16 + zlib.MAX_WBITS)
         return source_text.decode('utf-8')
     except Exception as e:
@@ -51,7 +47,7 @@ def list_modules(address: str) -> list:
             data = response.json()
             modules = []
             
-            # The v2 endpoint returns a direct list of modules
+ 
             if "modules" in data and isinstance(data["modules"], list):
                 for module in data["modules"]:
                     if "abi" in module and "name" in module["abi"]:
@@ -73,9 +69,9 @@ def get_module_source_by_name(address: str, module_name: str) -> str:
         if response.status_code == 200:
             data = response.json()
             
-            # Navigate through the PackageRegistry structure
+  
             if "result" in data and isinstance(data["result"], list) and len(data["result"]) > 0:
-                # Get the first (and usually only) PackageRegistry entry
+ 
                 registry = data["result"][0]
                 
                 if "packages" in registry:
@@ -83,7 +79,7 @@ def get_module_source_by_name(address: str, module_name: str) -> str:
                         if "modules" in package:
                             for module in package["modules"]:
                                 if "name" in module and module["name"].lower() == module_name.lower():
-                                    # Found the module, extract source
+     
                                     if "source" in module:
                                         return extract_module_source(module["source"])
                                     else:
@@ -106,7 +102,6 @@ def get_all_resources(address: str) -> dict:
     except requests.RequestException as e:
         return {"error": f"Network error: {str(e)}"}
 
-# ---------- OpenBlocks API Functions ----------
 def get_transfer_stats() -> dict:
     """Get transfer statistics for SUPRA token"""
     try:
@@ -124,15 +119,14 @@ def get_recent_transfers(limit: int = 50) -> dict:
     except requests.RequestException as e:
         return {"error": f"Network error: {str(e)}"}
 
-# ---------- Enhanced Command Parser ----------
+ 
 def process_command(command: str) -> str:
     """
     Parse the user's command and return a formatted response.
     Enhanced with better error handling and formatting.
     """
     command = command.lower().strip()
-    
-    # Help command
+ 
     if command in ["help", "options", "menu"]:
         return """🚀 Supra Explorer Agent - Command Reference
 
@@ -163,7 +157,6 @@ def process_command(command: str) -> str:
 
 Type any command to get started! 🎯"""
 
-    # Get module code (immediate with module name)
     if "get module code of" in command:
         match = re.search(r"get module code of ([^\s]+) at ([^\s]+)", command)
         if match:
@@ -175,8 +168,7 @@ Type any command to get started! 🎯"""
             except Exception as e:
                 return f"❌ Error retrieving module source: {str(e)}"
         return "❌ Usage: get module code of <module> at <address>"
-
-    # Multi-step module code retrieval
+    
     if command.startswith("get module code at"):
         match = re.search(r"get module code at ([^\s]+)", command)
         if match:
@@ -195,8 +187,7 @@ Type any command to get started! 🎯"""
             except Exception as e:
                 return f"❌ Error retrieving modules: {str(e)}"
         return "❌ Usage: get module code at <address>"
-
-    # Module selection
+ 
     if command.startswith("choose module"):
         if "pending_module" not in session:
             return "❌ No module selection pending. Use 'get module code at <address>' first."
@@ -209,14 +200,13 @@ Type any command to get started! 🎯"""
             modules = pending.get("modules", [])
             
             selected_module = None
-            
-            # Try to parse as number first
+ 
             if selection.isdigit():
                 index = int(selection) - 1
                 if 0 <= index < len(modules):
                     selected_module = modules[index]
             else:
-                # Try to find by name (case insensitive)
+ 
                 for module in modules:
                     if module.lower() == selection.lower():
                         selected_module = module
@@ -233,7 +223,7 @@ Type any command to get started! 🎯"""
                 return f"❌ Invalid selection '{selection}'. Please use a valid number or module name."
         return "❌ Usage: choose module <name or number>"
 
-    # List modules
+ 
     if "list modules" in command:
         match = re.search(r"list modules at ([^\s]+)", command)
         if match:
@@ -245,15 +235,13 @@ Type any command to get started! 🎯"""
                 
                 if not modules:
                     return f"📭 No modules found at address {address}"
-                
-                # Format as clean list instead of JSON
+ 
                 mod_list = "\n".join(f"  • {mod}" for mod in modules)
                 return f"📦 Modules deployed at {address}:\n\n{mod_list}\n\n💡 Use 'get module code of <module> at {address}' to view source"
             except Exception as e:
                 return f"❌ Error: {str(e)}"
         return "❌ Usage: list modules at <address>"
-
-    # List resources
+ 
     elif "list resources" in command:
         match = re.search(r"list resources at ([^\s]+)", command)
         if match:
@@ -267,8 +255,7 @@ Type any command to get started! 🎯"""
             except Exception as e:
                 return f"❌ Error: {str(e)}"
         return "❌ Usage: list resources at <address>"
-
-    # Transfer statistics
+ 
     elif "transfer stats" in command:
         try:
             stats = get_transfer_stats()
@@ -277,15 +264,14 @@ Type any command to get started! 🎯"""
             return f"📊 SUPRA Transfer Statistics:\n\n{json.dumps(stats, indent=2)}"
         except Exception as e:
             return f"❌ Error: {str(e)}"
-
-    # Recent transfers
+ 
     elif "recent onchain transfers" in command:
         match = re.search(r"recent onchain transfers(?: with limit (\d+))?", command)
-        limit = 10  # Default limit
+        limit = 10  
         if match and match.group(1):
             try:
                 limit = int(match.group(1))
-                limit = min(limit, 100)  # Cap at 100 for performance
+                limit = min(limit, 100)  
             except:
                 pass
         
@@ -296,29 +282,6 @@ Type any command to get started! 🎯"""
             return f"🔄 Recent On-Chain Transfers (limit: {limit}):\n\n{json.dumps(transfers, indent=2)}"
         except Exception as e:
             return f"❌ Error: {str(e)}"
-
-    # Filtered transfers
-    elif "filtered transfers" in command:
-        match = re.search(r"filtered transfers from (\d+) to (\d+)(?: for wallet ([^\s]+))?", command)
-        if match:
-            try:
-                start_date = int(match.group(1))
-                end_date = int(match.group(2))
-                wallet = match.group(3) if match.group(3) else ""
-                
-                transfers = get_filtered_transfers(
-                    start_date, 
-                    end_date, 
-                    outflow_addresses=[wallet] if wallet else []
-                )
-                
-                if isinstance(transfers, dict) and "error" in transfers:
-                    return f"❌ Error: {transfers['error']}"
-                return f"🔍 Filtered Transfers:\n\n{json.dumps(transfers, indent=2)}"
-            except Exception as e:
-                return f"❌ Error: {str(e)}"
-        return "❌ Usage: filtered transfers from <start_date> to <end_date> for wallet <wallet>"
-
     # Exit command
     elif command == "exit":
         return "👋 Session ended. Refresh the page to restart."
@@ -330,10 +293,8 @@ Type any command to get started! 🎯"""
 💡 Type 'help' to see all available commands, or try:
 • list modules at 0x1
 • transfer stats  
-• recent onchain transfers with limit 10
-• get module code at 0x1"""
-
-# ---------- Flask Routes ----------
+• recent onchain transfers with limit 10"""
+ 
 @app.route("/")
 def index():
     """Serve the main page"""
