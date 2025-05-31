@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supra Explorer Agent</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        :root {
+            /* Supra Official Colors */
+            --supra-red: #DD1438;
+            --midnight: #1D2A3A;
+            --deep-space: #131722;
+            --ultra-dark-gray: #353F4A;
+            --dark-gray: #6A737C;
+            --medium-gray: #9EABB5;
+            
+            /* UI Enhancement Colors */
+            --text-primary: #ffffff;
+            --text-secondary: #9EABB5;
+            --text-muted: #6A737C;
+            --glass-bg: rgba(29, 42, 58, 0.3);
+            --glass-border: rgba(157, 171, 181, 0.1);
+            --card-bg: rgba(29, 42, 58, 0.4);
+            --hover-bg: rgba(221, 20, 56, 0.1);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--deep-space) 0%, var(--midnight) 50%, var(--ultra-dark-gray) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Simplified background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(221, 20, 56, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(29, 42, 58, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -3;
+        }
+        
+        /* Binary rain effect */
+        .binary-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+        
+        .binary-column {
+            position: absolute;
+            top: -100px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: rgba(221, 20, 56, 0.15);
+            white-space: pre;
+            animation: binaryFall linear infinite;
+            text-shadow: 0 0 5px rgba(221, 20, 56, 0.1);
+        }
+        
+        .binary-column.dim {
+            color: rgba(157, 171, 181, 0.08);
+            font-size: 12px;
+        }
+        
+        @keyframes binaryFall {
+            0% {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+        }
+        
+        /* Floating particles */
+        .particle {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: var(--supra-red);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.6;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.6; }
+            50% { transform: translateY(-20px) rotate(180deg); opacity: 1; }
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            height: 100vh;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .sidebar {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .sidebar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--supra-red), transparent);
+        }
+        .sidebar-header {
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--supra-red), #ff4469);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+        .sidebar-subtitle {
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 400;
+        }
+        .commands-section {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding-right: 8px;
+        }
+        .command-item {
+            background: var(--card-bg);
+            border: 1px solid rgba(157, 171, 181, 0.08);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .command-item:hover {
+            border-color: var(--supra-red);
+            background: var(--hover-bg);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(221, 20, 56, 0.15);
+        }
+        .command-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--supra-red);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .command-item:hover::before {
+            opacity: 1;
+        }
+        .command-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: var(--supra-red);
+            color: white;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .command-title {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            font-size: 14px;
+            line-height: 1.3;
+        }
+        .command-usage {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: rgba(254, 254, 255, 0.546);
+            background: rgba(19, 23, 34, 0.5);
+            padding: 8px 10px;
+            border-radius: 6px;
+            border-left: 2px solid var(--supra-red);
+            line-height: 1.2;
+        }
+        .input-area {
+            display: flex;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .input-area:focus-within {
+            border-color: var(--supra-red);
+            box-shadow: 0 0 0 3px rgba(221, 20, 56, 0.1);
+        }
+        .input-area input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 14px;
+            padding: 14px 18px;
+            font-family: 'Inter', sans-serif;
+            border-radius: 12px 0 0 12px;
+        }
+        .input-area input::placeholder {
+            color: var(--text-muted);
+        }
+        .send-button {
+            background: linear-gradient(135deg, var(--supra-red), #c41230);
+            border: none;
+            border-radius: 0 12px 12px 0;
+            color: white;
+            padding: 14px 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+            min-width: 85px;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .send-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(221, 20, 56, 0.3);
+            background: linear-gradient(135deg, #e71545, var(--supra-red));
+        }
+        .send-button:active {
+            transform: translateY(0);
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            padding: 8px 0;
+        }
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .output-panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .output-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--supra-red), transparent);
+        }
+        .output-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid rgba(157, 171, 181, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: between;
+            background: rgba(29, 42, 58, 0.2);
+        }
+        .output-title {
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--supra-red), #ff4469);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            flex: 1;
+        }
+        .output-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .control-button {
+            background: rgba(29, 42, 58, 0.6);
+            border: 1px solid rgba(157, 171, 181, 0.1);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            padding: 8px 14px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 500;
+        }
+        .control-button:hover {
+            background: rgba(221, 20, 56, 0.1);
+            border-color: var(--supra-red);
+            color: var(--text-primary);
+        }
+        .output-content {
+            flex: 1;
+            padding: 20px 24px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .output-area {
+            background: rgba(19, 23, 34, 0.6);
+            border: 1px solid rgba(157, 171, 181, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 400px;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            color: rgba(254, 254, 255, 0.766);
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+        .output-area:empty::before {
+            content: "🚀 Welcome to Supra Explorer Agent!\n\nClick any command on the left or type your query to get started!";
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            color: var(--supra-red);
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        .loading.show {
+            display: flex;
+        }
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(157, 171, 181, 0.1);
+            border-top: 2px solid var(--supra-red);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(19, 23, 34, 0.3);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--dark-gray);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--medium-gray);
+        }
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                height: auto;
+                min-height: 100vh;
+            }
+            
+            .sidebar {
+                order: 2;
+                max-height: 400px;
+            }
+            
+            .output-panel {
+                order: 1;
+                min-height: 500px;
+            }
+        }
+        /* Enhanced animations */
+        .command-item {
+            animation: slideInLeft 0.5s ease-out;
+        }
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        /* Code syntax highlighting enhancements */
+        .output-area code {
+            color: var(--supra-red);
+        }
+        .output-area .keyword {
+            color: #ff6b9d;
+        }
+        .output-area .string {
+            color: #4ecdc4;
+        }
+        .output-area .comment {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- Binary rain background -->
+    <div class="binary-rain" id="binary-rain"></div>
+    
+    <!-- Floating particles for subtle tech effect -->
+    <div class="particle" style="top: 10%; left: 10%; animation-delay: 0s;"></div>
+    <div class="particle" style="top: 20%; left: 80%; animation-delay: 1s;"></div>
+    <div class="particle" style="top: 60%; left: 20%; animation-delay: 2s;"></div>
+    <div class="particle" style="top: 80%; left: 70%; animation-delay: 3s;"></div>
+    <div class="particle" style="top: 40%; left: 90%; animation-delay: 4s;"></div>
+    <div class="particle" style="top: 70%; left: 5%; animation-delay: 5s;"></div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="sidebar-title">Supra Explorer Agent</h1>
+                <p class="sidebar-subtitle">AI-powered blockchain exploration</p>
+            </div>
+            
+            <div class="commands-section">
+                <div class="command-item" onclick="fillCommand('list modules at 0x1')">
+                    <div class="command-number">1</div>
+                    <div class="command-title">List Deployed Modules</div>
+                    <div class="command-usage">list modules at [Address]</div>
+                </div>
+                
+                <div class="command-item" onclick="fillCommand('get module code at 0x1')">
+                    <div class="command-number">2</div>
+                    <div class="command-title">Get Module Source Code</div>
+                    <div class="command-usage">get module code at [Address]</div>
+                </div>
+                
+                <div class="command-item" onclick="fillCommand('list resources at 0x1')">
+                    <div class="command-number">3</div>
+                    <div class="command-title">List Account Resources</div>
+                    <div class="command-usage">list resources at [Address]</div>
+                </div>
+                
+                <div class="command-item" onclick="fillCommand('transfer stats')">
+                    <div class="command-number">4</div>
+                    <div class="command-title">SUPRA Transfer Stats</div>
+                    <div class="command-usage">transfer stats</div>
+                </div>
+                
+                <div class="command-item" onclick="fillCommand('recent onchain transfers with limit 10')">
+                    <div class="command-number">5</div>
+                    <div class="command-title">Recent Transfers</div>
+                    <div class="command-usage">recent onchain transfers with limit [Number]</div>
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <input type="text" id="message-input" placeholder="Type your command here..." autocomplete="off">
+                <button class="send-button" id="send-button">
+                    <span>Send</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m22 2-7 20-4-9-9-4Z"/>
+                        <path d="M22 2 11 13"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <span>Processing command...</span>
+            </div>
+            
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>Connected to Supra Testnet</span>
+            </div>
+        </div>
+        
+        <div class="output-panel">
+            <div class="output-header">
+                <h2 class="output-title">Output</h2>
+                <div class="output-controls">
+                    <button class="control-button" onclick="clearOutput()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18"/>
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                        </svg>
+                        Clear
+                    </button>
+                    <button class="control-button" onclick="copyOutput()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+                        </svg>
+                        Copy
+                    </button>
+                    <button class="control-button" onclick="openDocs()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14,2 14,8 20,8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10,9 9,9 8,9"/>
+                        </svg>
+                        Docs
+                    </button>
+                </div>
+            </div>
+            
+            <div class="output-content">
+                <pre class="output-area" id="output-area"></pre>
+            </div>
+        </div>
+    </div>
+    <script>
+        const sendButton = document.getElementById('send-button');
+        const messageInput = document.getElementById('message-input');
+        const outputArea = document.getElementById('output-area');
+        const loading = document.getElementById('loading');
+        
+        // Enhanced command sending with loading states
+        function sendCommand(message) {
+            if (!message.trim()) return;
+            
+            loading.classList.add('show');
+            sendButton.disabled = true;
+            outputArea.textContent = '';
+            
+            fetch("/chat", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({message: message})
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.classList.remove('show');
+                sendButton.disabled = false;
+                
+                // Enhanced output formatting
+                let formattedResponse = data.response;
+                
+                // Try to parse and prettify JSON
+                try {
+                    const lines = formattedResponse.split('\n');
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (line.startsWith('{') || line.startsWith('[')) {
+                            const jsonPart = lines.slice(i).join('\n');
+                            const parsed = JSON.parse(jsonPart);
+                            const prettified = JSON.stringify(parsed, null, 2);
+                            formattedResponse = lines.slice(0, i).join('\n') + 
+                                (i > 0 ? '\n' : '') + prettified;
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    // Not JSON, keep original formatting
+                }
+                
+                outputArea.textContent = formattedResponse;
+            })
+            .catch(error => {
+                loading.classList.remove('show');
+                sendButton.disabled = false;
+                outputArea.textContent = `Error: ${error.message}`;
+            });
+        }
+        
+        // Fill command from sidebar clicks
+        function fillCommand(command) {
+            messageInput.value = command;
+            messageInput.focus();
+        }
+        
+        // Utility functions
+        function clearOutput() {
+            outputArea.textContent = '';
+        }
+        
+        function copyOutput() {
+            navigator.clipboard.writeText(outputArea.textContent).then(() => {
+                const button = event.target.closest('.control-button');
+                const originalHTML = button.innerHTML;
+                button.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Copied!`;
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                }, 2000);
+            });
+        }
+        
+        function openDocs() {
+            window.open('https://docs.supra.com', '_blank');
+        }
+        
+        // Event listeners
+        sendButton.addEventListener('click', function() {
+            const message = messageInput.value;
+            if (!message.trim()) return;
+            sendCommand(message);
+            messageInput.value = "";
+        });
+        
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendButton.click();
+            }
+        });
+        
+        // Auto-focus input on page load
+        window.addEventListener('load', () => {
+            messageInput.focus();
+        });
+        
+        // Enhanced typing animation for welcome message
+        function typeWriter(text, element, speed = 50) {
+            let i = 0;
+            element.textContent = '';
+            function type() {
+                if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(type, speed);
+                }
+            }
+            type();
+        }
+        
+        // Initialize with welcome message
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const welcomeText = "🚀 Welcome to Supra Explorer Agent!\n\nYour AI-powered blockchain exploration assistant.\n\nClick any command on the left or type your query to get started!";
+                typeWriter(welcomeText, outputArea, 30);
+            }, 500);
+        });
+        
+        // Create binary rain effect
+        function createBinaryRain() {
+            const binaryRain = document.getElementById('binary-rain');
+            const screenWidth = window.innerWidth;
+            const columnCount = Math.floor(screenWidth / 60); // One column every 60px
+            
+            for (let i = 0; i < columnCount; i++) {
+                setTimeout(() => {
+                    const column = document.createElement('div');
+                    column.className = Math.random() > 0.7 ? 'binary-column' : 'binary-column dim';
+                    
+                    // Generate binary string (10-20 characters)
+                    const length = 10 + Math.floor(Math.random() * 10);
+                    let binaryString = '';
+                    for (let j = 0; j < length; j++) {
+                        binaryString += Math.random() > 0.5 ? '1' : '0';
+                        if (j < length - 1) binaryString += '\n';
+                    }
+                    
+                    column.textContent = binaryString;
+                    column.style.left = (i * 60 + Math.random() * 40) + 'px';
+                    column.style.animationDuration = (8 + Math.random() * 6) + 's';
+                    column.style.animationDelay = Math.random() * 5 + 's';
+                    
+                    binaryRain.appendChild(column);
+                    
+                    // Remove after animation
+                    setTimeout(() => {
+                        if (column.parentNode) {
+                            column.remove();
+                        }
+                    }, 15000);
+                }, i * 200);
+            }
+        }
+        
+        // Initialize binary rain
+        createBinaryRain();
+        setInterval(createBinaryRain, 12000);
+    </script>
+</body>
+</html>
