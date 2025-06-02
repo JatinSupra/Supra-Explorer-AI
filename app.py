@@ -9,13 +9,14 @@ from waitress import serve
 app = Flask(__name__)
 app.secret_key = "supersecretkey"   
 
-# Endpoints 
+# Endpoints to be used for the code of this ai agent explorer.
 ACCOUNT_MODULES_URL = "https://rpc-testnet.supra.com/rpc/v2/accounts/{address}/modules"
 ACCOUNT_RESOURCES_URL = "https://rpc-testnet.supra.com/rpc/v1/accounts/{address}/resources/0x1::code::PackageRegistry"
 ALL_RESOURCES_URL = "https://rpc-testnet.supra.com/rpc/v3/accounts/{address}/resources"
 TRANSFER_STATS_URL = "https://services.blockpour.com/query/stats/supra/transfer-stats"
 RECENT_TRANSFERS_URL = "https://services.blockpour.com/query/transfers/recent-supra?limit={limit}"
  
+# pkg reg for using to fetch the module source code. 
 def get_package_registry(address: str) -> dict:
     """Get package registry for an address"""
     url = ACCOUNT_RESOURCES_URL.format(address=address)
@@ -25,6 +26,7 @@ def get_package_registry(address: str) -> dict:
     except requests.RequestException as e:
         return {"error": f"Network error: {str(e)}"}
 
+# ref taken from Nolan's code of fetching module code also available on suprascan.
 def extract_module_source(mod_source: str) -> str:
     """Extract and decompress module source code"""
     if mod_source == "0x":
@@ -37,7 +39,8 @@ def extract_module_source(mod_source: str) -> str:
         return source_text.decode('utf-8')
     except Exception as e:
         return f"Error decompressing source: {e}"
-
+    
+# use the REST API given in our official docs to fetch modules.
 def list_modules(address: str) -> list:
     """List all modules deployed at an address using the correct modules endpoint"""
     url = f"https://rpc-testnet.supra.com/rpc/v2/accounts/{address}/modules"
@@ -61,30 +64,25 @@ def list_modules(address: str) -> list:
     except requests.RequestException as e:
         return {"error": f"Network error: {str(e)}"}
 
+# use the code ref given in dev-adv to fetch module code.
 def get_module_source_by_name(address: str, module_name: str) -> str:
     """Get source code for a specific module using PackageRegistry like the JavaScript example"""
     url = f"https://rpc-testnet.supra.com/rpc/v1/accounts/{address}/resources/0x1::code::PackageRegistry"
     try:
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
-            data = response.json()
-            
-  
+            data = response.json()  
             if "result" in data and isinstance(data["result"], list) and len(data["result"]) > 0:
- 
                 registry = data["result"][0]
-                
                 if "packages" in registry:
                     for package in registry["packages"]:
                         if "modules" in package:
                             for module in package["modules"]:
                                 if "name" in module and module["name"].lower() == module_name.lower():
-     
                                     if "source" in module:
                                         return extract_module_source(module["source"])
                                     else:
                                         return "No source field found for this module."
-            
             return f"Module '{module_name}' not found in PackageRegistry."
         else:
             return f"Error fetching PackageRegistry: HTTP {response.status_code} - {response.text}"
@@ -93,6 +91,7 @@ def get_module_source_by_name(address: str, module_name: str) -> str:
     except Exception as e:
         return f"Error retrieving module source: {str(e)}"
 
+# use the REST API given in our official docs to fetch resources.
 def get_all_resources(address: str) -> dict:
     """Get all resources deployed at an address"""
     url = ALL_RESOURCES_URL.format(address=address)
@@ -102,6 +101,7 @@ def get_all_resources(address: str) -> dict:
     except requests.RequestException as e:
         return {"error": f"Network error: {str(e)}"}
 
+# Endpoints from OpenBlocks.ai to get onchain transfer statistics and recent transfers.
 def get_transfer_stats() -> dict:
     """Get transfer statistics for SUPRA token"""
     try:
@@ -119,7 +119,7 @@ def get_recent_transfers(limit: int = 50) -> dict:
     except requests.RequestException as e:
         return {"error": f"Network error: {str(e)}"}
 
- 
+# pckge it all together in a function to process user commands.
 def process_command(command: str) -> str:
     """
     Parse the user's command and return a formatted response.
@@ -282,11 +282,8 @@ Type any command to get started! 🎯"""
             return f"🔄 Recent On-Chain Transfers (limit: {limit}):\n\n{json.dumps(transfers, indent=2)}"
         except Exception as e:
             return f"❌ Error: {str(e)}"
-    # Exit command
     elif command == "exit":
         return "👋 Session ended. Refresh the page to restart."
-
-    # Unknown command
     else:
         return f"""❌ Unknown command: '{command}'
 
